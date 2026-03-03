@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNYone | Auth Center</title>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.0.0/firebase-firestore-compat.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { background: #000; color: #fff; font-family: 'Segoe UI', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .auth-container { width: 320px; background: #121212; padding: 30px; border-radius: 15px; border: 1px solid #262626; text-align: center; }
+        h1 { color: #00d2ff; font-style: italic; margin-bottom: 20px; }
+        input { width: 100%; padding: 12px; margin: 10px 0; background: #1a1a1a; border: 1px solid #333; color: #fff; border-radius: 8px; outline: none; }
+        input:focus { border-color: #00d2ff; }
+        .main-btn { width: 100%; padding: 12px; background: #00d2ff; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .switch-text { margin-top: 20px; font-size: 13px; color: #8e8e8e; cursor: pointer; }
+        .switch-text b { color: #00d2ff; }
+    </style>
+</head>
+<body>
+
+<div class="auth-container">
+    <h1>VNYone</h1>
+    
+    <div id="name-box">
+        <input type="text" id="userName" placeholder="Full Name">
+    </div>
+    <input type="email" id="userEmail" placeholder="Email Address">
+    <input type="password" id="userPass" placeholder="Password">
+    
+    <button class="main-btn" id="actionBtn" onclick="processAuth()">Create Account</button>
+    
+    <div class="switch-text" id="toggleLink" onclick="toggleMode()">
+        Already have an account? <b>Log In</b>
+    </div>
+</div>
+
+<script>
+    // Firebase Config
+    const firebaseConfig = {
+        apiKey: "AIzaSyAq67c32Oz1wgTEqbmZStWsbNuJ2UTqgzc",
+        authDomain: "vnyone-1.firebaseapp.com",
+        projectId: "vnyone-1",
+        storageBucket: "vnyone-1.firebasestorage.app",
+        messagingSenderId: "353061173666",
+        appId: "1:353061173666:web:022b7015e116ff4b055afb"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    let isLogin = false; // By default Signup mode
+
+    function toggleMode() {
+        isLogin = !isLogin;
+        const nameBox = document.getElementById('name-box');
+        const actionBtn = document.getElementById('actionBtn');
+        const toggleLink = document.getElementById('toggleLink');
+
+        if(isLogin) {
+            nameBox.style.display = 'none';
+            actionBtn.innerText = 'Log In';
+            toggleLink.innerHTML = "Don't have an account? <b>Sign Up</b>";
+        } else {
+            nameBox.style.display = 'block';
+            actionBtn.innerText = 'Create Account';
+            toggleLink.innerHTML = "Already have an account? <b>Log In</b>";
+        }
+    }
+
+    async function processAuth() {
+        const email = document.getElementById('userEmail').value;
+        const pass = document.getElementById('userPass').value;
+        const name = document.getElementById('userName').value;
+
+        if(!email || !pass) return alert("Email aur Password daalo bhai!");
+
+        try {
+            if(isLogin) {
+                // LOGIN
+                await auth.signInWithEmailAndPassword(email, pass);
+                window.location.href = "home.html";
+            } else {
+                // SIGNUP
+                if(!name) return alert("Naam toh batao!");
+                const cred = await auth.createUserWithEmailAndPassword(email, pass);
+                
+                // Firestore mein user record banana
+                await db.collection("users").doc(cred.user.uid).set({
+                    name: name,
+                    uid: cred.user.uid,
+                    email: email,
+                    dp: "",
+                    bio: "VNYone Member"
+                });
+                window.location.href = "home.html";
+            }
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+</script>
+</body>
+</html>
