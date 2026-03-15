@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VNYone | Uniq Chat</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link id="font-link" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Grand+Hotel&family=Inter:wght@400;700&family=Courier+Prime&family=Pacifico&family=Bebas+Neue&family=Dancing+Script&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+
+    <style>
+        :root { --accent: #ff85a1; --bg: #0b0f15; --card: #151a22; --font-family: 'Poppins', sans-serif; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: var(--font-family); transition: 0.3s ease; }
+        body { background: var(--bg); color: white; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+        /* Header Fix */
+        .chat-header { height: 70px; padding: 0 15px; background: #0e1219; display: flex; align-items: center; border-bottom: 1px solid #1f252e; z-index: 1000; }
+        .peer-img { width: 45px; height: 45px; border-radius: 50%; border: 2px solid var(--accent); object-fit: cover; }
+        .peer-info { flex: 1; margin-left: 12px; display: flex; flex-direction: column; justify-content: center; }
+        .peer-info b { font-size: 16px; display: block; line-height: 1.2; }
+        #last-seen { font-size: 10px; color: #00e676; display: flex; align-items: center; gap: 4px; }
+        .header-actions { display: flex; gap: 20px; color: var(--accent); font-size: 18px; }
+
+        /* Selection Menus */
+        #selection-box { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 85%; max-width: 320px; background: var(--card); border-radius: 20px; border: 1px solid var(--accent); z-index: 3000; padding: 20px; box-shadow: 0 0 30px rgba(0,0,0,0.8); }
+        .sel-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 15px; max-height: 300px; overflow-y: auto; }
+        .sel-item { padding: 12px; background: #1a1f26; border-radius: 12px; text-align: center; font-size: 13px; cursor: pointer; border: 1px solid #333; }
+        
+        #menu-box { display: none; position: fixed; top: 75px; right: 15px; width: 210px; background: var(--card); border-radius: 15px; border: 1px solid #2a313d; z-index: 2000; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .menu-item { padding: 14px 18px; font-size: 14px; cursor: pointer; border-bottom: 1px solid #222; display: flex; justify-content: space-between; }
+
+        /* Chat Area */
+        .chat-box { flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px; position: relative; }
+        .msg { max-width: 75%; padding: 12px 16px; font-size: 15px; border-radius: 20px; position: relative; z-index: 10; }
+        .msg.sent { align-self: flex-end; background: var(--accent); color: black; border-bottom-right-radius: 4px; font-weight: 500; }
+        .msg.received { align-self: flex-start; background: var(--card); border: 1px solid #222; border-bottom-left-radius: 4px; }
+
+        /* Input Area Fix */
+        .input-bar { padding: 10px 15px; background: #0e1219; display: flex; align-items: center; gap: 10px; border-top: 1px solid #1f252e; }
+        .input-container { flex: 1; }
+        #msgInput { width: 100%; background: #1a1f26; border: 1px solid #333; padding: 12px 20px; border-radius: 30px; color: white; outline: none; }
+        .send-btn { background: var(--accent); border: none; width: 48px; height: 48px; border-radius: 50%; color: black; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 15px var(--accent); }
+    </style>
+</head>
+<body>
+
+    <div class="chat-header">
+        <i class="fa-solid fa-chevron-left" style="margin-right:15px; color:var(--accent);" onclick="location.href='home.html'"></i>
+        <img id="peer-img" class="peer-img" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+        <div class="peer-info">
+            <b id="peer-name">Loading...</b>
+            <p id="last-seen"><i class="fa-solid fa-circle" style="font-size:7px;"></i> Online</p>
+        </div>
+        <div class="header-actions">
+            <i class="fa-solid fa-phone"></i>
+            <i class="fa-solid fa-video"></i>
+            <i class="fa-solid fa-ellipsis-vertical" onclick="toggleMenu()"></i>
+        </div>
+    </div>
+
+    <div id="selection-box">
+        <h3 id="sel-title" style="text-align:center; color:var(--accent);">Choose One</h3>
+        <div class="sel-grid" id="sel-content"></div>
+        <button onclick="closeSel()" style="width:100%; margin-top:15px; background:none; border:1px solid #444; color:#999; padding:8px; border-radius:10px;">Close</button>
+    </div>
+
+    <div id="menu-box">
+        <div class="menu-item" onclick="openSel('themes')">Themes <i class="fa-solid fa-palette"></i></div>
+        <div class="menu-item" onclick="openSel('fonts')">Fonts <i class="fa-solid fa-font"></i></div>
+        <div class="menu-item" onclick="clearChat()">Clear Chat <i class="fa-solid fa-trash-can"></i></div>
+    </div>
+
+    <div class="chat-box" id="chatBox"></div>
+
+    <div class="input-bar">
+        <i class="fa-solid fa-circle-plus" style="color:#555; font-size:22px;"></i>
+        <div class="input-container">
+            <input type="text" id="msgInput" placeholder="Write a message..." onkeypress="if(event.key==='Enter') sendMsg()">
+        </div>
+        <button class="send-btn" onclick="sendMsg()"><i class="fa-solid fa-paper-plane"></i></button>
+    </div>
+
+    <script src="firebase.js"></script>
+    <script>
+        const db = window.db || firebase.firestore();
+        const myUID = localStorage.getItem("userUID");
+        const urlParams = new URLSearchParams(window.location.search);
+        const peerID = urlParams.get('id');
+        const room = myUID < peerID ? myUID + "_" + peerID : peerID + "_" + myUID;
+
+        // --- UI LOGIC ---
+        function toggleMenu() {
+            const m = document.getElementById('menu-box');
+            m.style.display = m.style.display === 'block' ? 'none' : 'block';
+        }
+        function closeSel() { document.getElementById('selection-box').style.display = 'none'; }
+        
+        function openSel(type) {
+            toggleMenu();
+            const box = document.getElementById('selection-box');
+            const content = document.getElementById('sel-content');
+            box.style.display = 'block';
+            content.innerHTML = '';
+            if(type === 'themes') {
+                const tList = [{n:'Pink', a:'#ff85a1', b:'#0b0f15'}, {n:'Cyan', a:'#00d2ff', b:'#050a0f'}, {n:'Gold', a:'#ffbd03', b:'#121212'}];
+                tList.forEach(t => content.innerHTML += `<div class="sel-item" onclick="applyTheme('${t.a}','${t.b}')">${t.n}</div>`);
+            } else {
+                const fList = ['Poppins', 'Grand Hotel', 'Pacifico', 'Dancing Script'];
+                fList.forEach(f => content.innerHTML += `<div class="sel-item" style="font-family:${f}" onclick="applyFont('${f}')">${f}</div>`);
+            }
+        }
+        function applyTheme(a, b) { document.documentElement.style.setProperty('--accent', a); document.documentElement.style.setProperty('--bg', b); closeSel(); }
+        function applyFont(f) { document.documentElement.style.setProperty('--font-family', `'${f}', sans-serif`); closeSel(); }
+
+        // --- DATA LOGIC ---
+        db.collection("users").doc(peerID).onSnapshot(doc => {
+            if(doc.exists) {
+                document.getElementById('peer-name').innerText = doc.data().name;
+                if(doc.data().photo) document.getElementById('peer-img').src = doc.data().photo;
+                const status = doc.data().online ? "Online" : "Last seen recently";
+                document.getElementById('last-seen').innerHTML = `<i class="fa-solid fa-circle" style="font-size:7px; color:${doc.data().online?'#00e676':'#666'}"></i> ${status}`;
+            }
+        });
+
+        db.collection("chats").doc(room).collection("messages").orderBy("time", "asc").onSnapshot(snap => {
+            const box = document.getElementById('chatBox');
+            box.innerHTML = '';
+            snap.forEach(doc => {
+                const m = doc.data();
+                const side = m.sender === myUID ? 'sent' : 'received';
+                box.innerHTML += `<div class="msg ${side}" onclick="handleUnsend('${doc.id}','${m.sender}')">${m.text}</div>`;
+            });
+            box.scrollTop = box.scrollHeight;
+        });
+
+        async function sendMsg() {
+            const input = document.getElementById('msgInput');
+            if(!input.value.trim()) return;
+            await db.collection("chats").doc(room).collection("messages").add({
+                text: input.value, sender: myUID, time: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            input.value = "";
+        }
+
+        function handleUnsend(id, sender) {
+            if(sender === myUID && confirm("Unsend?")) db.collection("chats").doc(room).collection("messages").doc(id).delete();
+        }
+    </script>
+</body>
+</html>

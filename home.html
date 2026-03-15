@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VNYone | Home</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+
+    <style>
+        :root { --accent: #00d2ff; --bg: #050a0f; --card: #0d1117; --text-dim: #888; }
+        @import url('https://fonts.googleapis.com/css2?family=Grand+Hotel&family=Inter:wght@400;600&display=swap');
+        
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: white; height: 100vh; overflow: hidden; }
+
+        /* Header */
+        .header { height: 60px; padding: 0 20px; display: flex; justify-content: space-between; align-items: center; background: #0a0f14; border-bottom: 1px solid #1a1a1a; position: fixed; top: 0; width: 100%; z-index: 100; }
+        .header h1 { font-family: 'Grand Hotel', cursive; font-size: 32px; color: var(--accent); }
+
+        /* Navigation */
+        .nav-bar { position: fixed; bottom: 0; width: 100%; height: 70px; background: #0a0f14; display: flex; border-top: 1px solid #1a1a1a; z-index: 1000; }
+        .nav-item { flex: 1; display: flex; align-items: center; justify-content: center; font-size: 24px; color: #444; cursor: pointer; }
+        .nav-item.active { color: var(--accent); }
+        .nav-dp { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid #444; object-fit: cover; }
+
+        /* Screens */
+        .screen { display: none; height: 100vh; padding: 80px 20px 90px; overflow-y: auto; }
+        .screen.active { display: block; }
+
+        /* User Cards (Search Screen) */
+        .user-card { display: flex; align-items: center; gap: 15px; padding: 12px; background: #0d1117; border-radius: 15px; margin-bottom: 12px; border: 1px solid #1a1a1a; cursor: pointer; }
+        .user-img { width: 50px; height: 50px; border-radius: 50%; object-fit: cover; }
+
+        /* Profile Card */
+        .profile-card { background: var(--card); border-radius: 25px; padding: 30px 20px; text-align: center; border: 1px solid #222; margin-top: 10px; }
+        .p-img-container { position: relative; width: 115px; height: 115px; margin: 0 auto 20px; cursor: pointer; }
+        #my-large-dp { width: 100%; height: 100%; border-radius: 50%; border: 3px solid var(--accent); padding: 3px; object-fit: cover; }
+        
+        .p-btn { width: 100%; padding: 14px; border-radius: 12px; border: none; font-weight: bold; margin-bottom: 10px; cursor: pointer; }
+        .btn-edit { background: #1a1a1a; color: white; border: 1px solid #333; }
+        .btn-logout { background: rgba(255, 77, 77, 0.1); color: #ff4d4d; border: 1px solid rgba(255, 77, 77, 0.3); }
+
+        /* Custom Modal */
+        #vny-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:5000; align-items:center; justify-content:center; }
+        .modal-content { background:#0d1117; width:85%; max-width:320px; padding:25px; border-radius:20px; border:1px solid #222; text-align:center; }
+        .modal-input { width:100%; padding:12px; background:#161b22; border:1px solid #333; border-radius:10px; color:white; margin-top:10px; outline:none; }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <h1>VNYone</h1>
+        <i class="fa-solid fa-paper-plane" onclick="switchScreen('search-screen', null)"></i>
+    </div>
+
+    <input type="file" id="file-input" accept="image/*" style="display:none;" onchange="uploadDP(this)">
+
+    <div id="feed-screen" class="screen active">
+        <div style="text-align: center; margin-top: 100px; opacity: 0.3;">
+            <i class="fa-solid fa-bolt-lightning" style="font-size: 50px; margin-bottom: 15px;"></i>
+            <p>Your feed will appear here.</p>
+        </div>
+    </div>
+
+    <div id="search-screen" class="screen">
+        <h3 style="margin-bottom: 15px; color: var(--accent);">Find Friends</h3>
+        <div id="users-list"></div>
+    </div>
+
+    <div id="profile-screen" class="screen">
+        <div class="profile-card">
+            <div class="p-img-container" onclick="document.getElementById('file-input').click()">
+                <img id="my-large-dp" src="https://cdn-icons-png.flaticon.com/512/149/149071.png">
+                <div style="position:absolute; bottom:5px; right:5px; background:var(--accent); color:black; width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; border:3px solid var(--card);"><i class="fa-solid fa-camera"></i></div>
+            </div>
+            <h2 id="my-name">User</h2>
+            <p id="my-bio" style="color:var(--text-dim); margin-top:5px; margin-bottom:20px;">Hey there!</p>
+            <button class="p-btn btn-edit" onclick="editProfile()">Edit Profile</button>
+            <button class="p-btn btn-logout" onclick="logout()">Logout</button>
+        </div>
+    </div>
+
+    <div id="vny-modal">
+        <div class="modal-content">
+            <h3 id="modal-title" style="color:var(--accent); margin-bottom:10px;">VNYone</h3>
+            <p id="modal-msg" style="font-size:14px; color:#bbb;"></p>
+            <input type="text" id="modal-input" class="modal-input" style="display:none;">
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button onclick="closeModal()" style="flex:1; padding:12px; background:#1a1a1a; color:white; border:none; border-radius:10px;">Cancel</button>
+                <button id="modal-confirm" style="flex:1; padding:12px; background:var(--accent); color:black; border:none; border-radius:10px; font-weight:bold;">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="nav-bar">
+        <div class="nav-item active" onclick="switchScreen('feed-screen', this)"><i class="fa-solid fa-house"></i></div>
+        <div class="nav-item" onclick="switchScreen('search-screen', this)"><i class="fa-solid fa-magnifying-glass"></i></div>
+        <div class="nav-item" onclick="vnyAlert('Post feature coming soon!')"><i class="fa-solid fa-circle-plus"></i></div>
+        <div class="nav-item" onclick="switchScreen('profile-screen', this)"><img id="my-nav-dp" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="nav-dp"></div>
+    </div>
+
+    <script src="firebase.js"></script>
+    <script>
+        const myUID = localStorage.getItem("userUID");
+
+        function vnyAlert(msg) {
+            document.getElementById('modal-title').innerText = "VNYone";
+            document.getElementById('modal-msg').innerText = msg;
+            document.getElementById('modal-input').style.display = "none";
+            document.getElementById('vny-modal').style.display = "flex";
+            document.getElementById('modal-confirm').onclick = closeModal;
+        }
+
+        function vnyPrompt(title, placeholder, callback) {
+            document.getElementById('modal-title').innerText = title;
+            const input = document.getElementById('modal-input');
+            input.style.display = "block";
+            input.placeholder = placeholder;
+            input.value = "";
+            document.getElementById('vny-modal').style.display = "flex";
+            document.getElementById('modal-confirm').onclick = () => { callback(input.value); closeModal(); };
+        }
+
+        function closeModal() { document.getElementById('vny-modal').style.display = "none"; }
+
+        function switchScreen(id, el) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            if(el) el.classList.add('active');
+        }
+
+        // --- NAVIGATION TO CHAT PAGE ---
+        function goToChat(userId) {
+            // Ye line aapko chat_list.html par le jayegi doosre user ki ID ke saath
+            window.location.href = "chat_list.html?id=" + userId;
+        }
+
+        // --- DP UPLOAD ---
+        async function uploadDP(input) {
+            const file = input.files[0];
+            if(!file) return;
+            vnyAlert("Updating Profile Picture...");
+            const ref = firebase.storage().ref("profile_pics/" + myUID);
+            ref.put(file).then(snap => snap.ref.getDownloadURL()).then(url => {
+                window.db.collection("users").doc(myUID).update({ photo: url });
+                vnyAlert("DP Updated! ✨");
+            });
+        }
+
+        // --- LOAD DATA ---
+        async function init() {
+            if(!myUID) { location.href = "index.html"; return; }
+            
+            // Get My Info
+            window.db.collection("users").doc(myUID).onSnapshot(doc => {
+                if(doc.exists) {
+                    const d = doc.data();
+                    document.getElementById('my-name').innerText = d.name;
+                    document.getElementById('my-bio').innerText = d.bio || "Hey there!";
+                    if(d.photo) {
+                        document.getElementById('my-nav-dp').src = d.photo;
+                        document.getElementById('my-large-dp').src = d.photo;
+                    }
+                }
+            });
+
+            // Get All Users
+            window.db.collection("users").onSnapshot(snap => {
+                const list = document.getElementById('users-list');
+                list.innerHTML = "";
+                snap.forEach(doc => {
+                    if(doc.id !== myUID) {
+                        const u = doc.data();
+                        list.innerHTML += `
+                            <div class="user-card" onclick="goToChat('${doc.id}')">
+                                <img src="${u.photo || 'https://cdn-icons-png.flaticon.com/512/149/149071.png'}" class="user-img">
+                                <div><b>${u.name}</b><p style="font-size:12px;color:gray;">Click to message</p></div>
+                            </div>`;
+                    }
+                });
+            });
+        }
+
+        function editProfile() {
+            vnyPrompt("Update Name", "New name...", (n) => {
+                if(!n) return;
+                vnyPrompt("Update Bio", "New bio...", (b) => {
+                    window.db.collection("users").doc(myUID).update({ name: n, bio: b });
+                });
+            });
+        }
+
+        function logout() { window.auth.signOut().then(() => { localStorage.clear(); location.href = "index.html"; }); }
+        window.onload = init;
+    </script>
+</body>
+</html>

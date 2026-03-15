@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VNYone | Create Post</title>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-storage-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        :root { --accent: #ff85a2; --bg: #0b101a; }
+        body { margin: 0; background: var(--bg); font-family: 'Segoe UI', sans-serif; color: white; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+
+        .header { padding: 15px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.1); background: rgba(15,23,42,0.8); }
+        .header b { font-size: 20px; color: var(--accent); }
+
+        .container { padding: 20px; flex: 1; display: flex; flex-direction: column; gap: 20px; overflow-y: auto; }
+        
+        /* Photo Preview Box */
+        .preview-box {
+            width: 100%; height: 300px; border: 2px dashed var(--accent); border-radius: 20px;
+            display: flex; align-items: center; justify-content: center;
+            overflow: hidden; background: rgba(255,255,255,0.03); cursor: pointer;
+        }
+        .preview-box img { width: 100%; height: 100%; object-fit: cover; }
+        .preview-box i { font-size: 50px; color: var(--accent); opacity: 0.5; }
+
+        textarea {
+            width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 15px; padding: 15px; color: white; outline: none; resize: none; font-size: 16px;
+        }
+
+        .post-btn {
+            padding: 15px; background: var(--accent); border: none; border-radius: 30px;
+            color: black; font-weight: bold; font-size: 18px; cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 133, 162, 0.4);
+        }
+
+        #loader { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; justify-content: center; align-items: center; flex-direction: column; gap: 10px; }
+    </style>
+</head>
+<body>
+
+    <div id="loader">
+        <i class="fas fa-spinner fa-spin" style="font-size: 40px; color: var(--accent);"></i>
+        <p id="loadText">Uploading to VNYone...</p>
+    </div>
+
+    <div class="header">
+        <i class="fa fa-arrow-left" onclick="history.back()"></i>
+        <b>New Post</b>
+        <div style="width:20px"></div>
+    </div>
+
+    <div class="container">
+        <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="previewImg(event)">
+        
+        <div class="preview-box" onclick="document.getElementById('fileInput').click()">
+            <i class="fa fa-plus-circle" id="plusIcon"></i>
+            <img id="imgShow" style="display:none">
+        </div>
+
+        <textarea id="caption" rows="3" placeholder="Write a caption..."></textarea>
+
+        <button class="post-btn" id="uploadBtn" onclick="startUpload()">Share Now</button>
+    </div>
+
+    <script src="firebase.js"></script>
+    <script>
+        // Check if firebase is loaded
+        const storage = firebase.storage();
+        const db = firebase.firestore();
+        const myUID = localStorage.getItem("userUID");
+        const myName = localStorage.getItem("userName") || "User";
+
+        let selectedFile = null;
+
+        // Image Selection Preview
+        function previewImg(event) {
+            selectedFile = event.target.files[0];
+            if (selectedFile) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    document.getElementById('imgShow').src = e.target.result;
+                    document.getElementById('imgShow').style.display = "block";
+                    document.getElementById('plusIcon').style.display = "none";
+                };
+                reader.readAsDataURL(selectedFile);
+            }
+        }
+
+        async function startUpload() {
+            if (!selectedFile) {
+                alert("Bhai photo toh select karo! 📸");
+                return;
+            }
+
+            const caption = document.getElementById('caption').value;
+            const loader = document.getElementById('loader');
+            const btn = document.getElementById('uploadBtn');
+
+            loader.style.display = "flex";
+            btn.disabled = true;
+
+            try {
+                // 1. Upload Photo to Firebase Storage
+                const fileName = Date.now() + "_" + myUID + ".jpg";
+                const storageRef = storage.ref('vny_posts/' + fileName);
+                
+                const uploadTask = await storageRef.put(selectedFile);
+                const fileURL = await uploadTask.ref.getDownloadURL();
+
+                // 2. Save Data to Firestore
+                await db.collection("posts").add({
+                    uid: myUID,
+                    name: myName,
+                    image: fileURL,
+                    caption: caption,
+                    timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+                    likes: []
+                });
+
+                alert("Post Ho Gaya! 🔥");
+                window.location.href = "feed.html";
+
+            } catch (error) {
+                console.error(error);
+                alert("Error: " + error.message);
+            } finally {
+                loader.style.display = "none";
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VNYone | Welcome</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --accent: #00d2ff; --bg: #050a0f; --card: #0d1117; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+        body { background: var(--bg); color: white; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        .container { width: 90%; max-width: 400px; background: var(--card); padding: 30px; border-radius: 25px; text-align: center; border: 1px solid #222; }
+        h1 { font-family: cursive; color: var(--accent); font-size: 35px; margin-bottom: 25px; }
+        .form-box { display: none; }
+        .form-box.active { display: block; }
+        .input-group { position: relative; margin-bottom: 15px; }
+        input { width: 100%; padding: 15px; background: #161b22; border: 1.5px solid #222; border-radius: 12px; color: white; outline: none; }
+        .eye-btn { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #555; cursor: pointer; }
+        button { width: 100%; padding: 15px; background: var(--accent); border: none; border-radius: 12px; font-weight: bold; cursor: pointer; color: black; margin-top: 10px; }
+        .toggle-link { margin-top: 20px; font-size: 13px; color: #888; cursor: pointer; display: block; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>VNYone</h1>
+
+        <div id="login-form" class="form-box active">
+            <div class="input-group"><input type="email" id="l-email" placeholder="Email"></div>
+            <div class="input-group">
+                <input type="password" id="l-pass" placeholder="Password">
+                <i class="fa-solid fa-eye eye-btn" onclick="togglePass('l-pass', this)"></i>
+            </div>
+            <button onclick="handleLogin()">Login</button>
+            <span class="toggle-link" onclick="showForm('signup-form')">New user? <b>Sign Up</b></span>
+            <span class="toggle-link" onclick="showForm('forgot-form')">Forgot Password?</span>
+        </div>
+
+        <div id="signup-form" class="form-box">
+            <div class="input-group"><input type="text" id="s-name" placeholder="Full Name"></div>
+            <div class="input-group"><input type="email" id="s-email" placeholder="Email"></div>
+            <div class="input-group">
+                <input type="password" id="s-pass" placeholder="Create Password">
+                <i class="fa-solid fa-eye eye-btn" onclick="togglePass('s-pass', this)"></i>
+            </div>
+            <button onclick="handleSignUp()">Create Account</button>
+            <span class="toggle-link" onclick="showForm('login-form')">Already have an account? <b>Login</b></span>
+        </div>
+
+        <div id="forgot-form" class="form-box">
+            <p style="font-size: 14px; margin-bottom: 15px; color: #bbb;">Enter your email to reset password</p>
+            <div class="input-group"><input type="email" id="f-email" placeholder="Email Address"></div>
+            <button onclick="handleReset()">Reset Password</button>
+            <span class="toggle-link" onclick="showForm('login-form')">Back to Login</span>
+        </div>
+
+        <p id="status-msg" style="font-size: 12px; margin-top: 15px; min-height: 18px;"></p>
+    </div>
+
+    <script src="firebase.js"></script>
+    <script>
+        function showForm(id) {
+            document.querySelectorAll('.form-box').forEach(f => f.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            document.getElementById('status-msg').innerText = "";
+        }
+
+        function togglePass(id, icon) {
+            const p = document.getElementById(id);
+            p.type = p.type === 'password' ? 'text' : 'password';
+            icon.classList.toggle('fa-eye-slash');
+        }
+
+        // --- AUTH LOGIC ---
+        async function handleLogin() {
+            const e = document.getElementById('l-email').value;
+            const p = document.getElementById('l-pass').value;
+            try {
+                const res = await window.auth.signInWithEmailAndPassword(e, p);
+                localStorage.setItem("userUID", res.user.uid);
+                location.href = "home.html";
+            } catch(err) { document.getElementById('status-msg').innerText = err.message; }
+        }
+
+        async function handleSignUp() {
+            const n = document.getElementById('s-name').value;
+            const e = document.getElementById('s-email').value;
+            const p = document.getElementById('s-pass').value;
+            try {
+                const res = await window.auth.createUserWithEmailAndPassword(e, p);
+                await window.db.collection("users").doc(res.user.uid).set({ name: n, email: e, uid: res.user.uid, photo: "" });
+                localStorage.setItem("userUID", res.user.uid);
+                location.href = "home.html";
+            } catch(err) { document.getElementById('status-msg').innerText = err.message; }
+        }
+
+        async function handleReset() {
+            const e = document.getElementById('f-email').value;
+            try {
+                await window.auth.sendPasswordResetEmail(e);
+                document.getElementById('status-msg').style.color = "lime";
+                document.getElementById('status-msg').innerText = "Reset email sent!";
+            } catch(err) { document.getElementById('status-msg').innerText = err.message; }
+        }
+    </script>
+</body>
+</html>
